@@ -1,5 +1,6 @@
 package in.succinct.osm.controller;
 
+import com.venky.geo.GeoCoder;
 import com.venky.geo.GeoCoder.GeoAddress;
 import com.venky.geo.GeoCoordinate;
 import com.venky.swf.controller.ModelController;
@@ -51,7 +52,7 @@ public class LocationsController extends ModelController<Location> {
     @RequireLogin(false)
     public View reverse() {
         Circle circle = getCircle();
-        List<Location> locations = new OSMGeoSP().getLocations(circle.getCenter(),circle.getParams());
+        List<Location> locations = OSMGeoSP.getInstance().getLocations(circle.getCenter(),circle.getParams());
         return IntegrationAdaptor.instance(getModelClass(), JSONObject.class).createResponse(getPath(),locations,List.of("TEXT","LAT","LNG","DISTANCE"));
     }
 

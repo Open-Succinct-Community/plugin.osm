@@ -7,6 +7,7 @@ import com.venky.swf.db.JdbcTypeHelper.TypeConverter;
 import com.venky.swf.path.Path;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +21,15 @@ public class Circle {
     
     public Circle(Map<String, String> params){
         this.params = (params != null ? params : new HashMap<>() );
+        removeNullValues(this.params);
+    }
+    
+    private void removeNullValues(Map<String, String> params) {
+        for (String k : new ArrayList<>(params.keySet())){
+            if (params.get(k) == null){
+                params.remove(k);
+            }
+        }
     }
     
     

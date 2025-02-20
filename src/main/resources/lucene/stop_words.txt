@@ -1,0 +1,11 @@
+private
+gate
+service 
+digitalglobe
+parking
+yes
+no
+residential
+customers
+lucene_start
+lucene_end
