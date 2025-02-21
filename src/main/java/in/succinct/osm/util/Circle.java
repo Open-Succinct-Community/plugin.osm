@@ -37,8 +37,8 @@ public class Circle {
     Double distance = null;
     public GeoCoordinate getCenter() {
         if (this.center == null) {
-            String lat = params.get("Lat");
-            String lng = params.get("Lng");
+            String lat = params.getOrDefault("X-Lat",params.get("Lat"));
+            String lng = params.getOrDefault("X-Lng",params.get("Lng"));
             if (!ObjectUtil.isVoid(lat) && !ObjectUtil.isVoid(lng)) {
                 center = new GeoCoordinate(tc.valueOf(lat),tc.valueOf(lng));
             }
