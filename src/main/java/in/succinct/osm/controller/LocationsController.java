@@ -3,6 +3,7 @@ package in.succinct.osm.controller;
 import com.venky.geo.GeoCoder;
 import com.venky.geo.GeoCoder.GeoAddress;
 import com.venky.geo.GeoCoordinate;
+import com.venky.geo.GeoLocation;
 import com.venky.swf.controller.ModelController;
 import com.venky.swf.controller.annotations.RequireLogin;
 import com.venky.swf.db.annotations.column.ui.mimes.MimeType;
@@ -55,6 +56,13 @@ public class LocationsController extends ModelController<Location> {
         List<Location> locations = OSMGeoSP.getInstance().getLocations(circle.getCenter(),circle.getParams());
         return IntegrationAdaptor.instance(getModelClass(), JSONObject.class).createResponse(getPath(),locations,List.of("TEXT","LAT","LNG","DISTANCE"));
     }
+    
+    @RequireLogin(false)
+    public View find(){
+        Circle circle = getCircle();
+        List<Location> locations =  OSMGeoSP.getInstance().getLocations(circle.getParams().get("q"),circle.getParams());
+        return IntegrationAdaptor.instance(getModelClass(), JSONObject.class).createResponse(getPath(),locations,List.of("TEXT","LAT","LNG","DISTANCE"));
+    }
 
     
     @Override
@@ -76,10 +84,7 @@ public class LocationsController extends ModelController<Location> {
         if (circle == null){
             Path iPath = getPath();
             if (iPath != null){
-                Map<String,String> params = new HashMap<>();
-                params.put("Lat",iPath.getHeader("Lat"));
-                params.put("Lng",iPath.getHeader("Lng"));
-                params.put("radius",iPath.getHeader("radius"));
+                Map<String,String> params = iPath.getHeaders();
                 circle = new Circle(params);
             }
         }

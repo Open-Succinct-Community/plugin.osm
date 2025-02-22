@@ -103,24 +103,7 @@ public class OSMGeoSP implements GeoSP {
     }
     @Override
     public GeoLocation getLocation(String address, Map<String, String> params) {
-        
-        Circle circle =  getCircle(params);
-        GeoCoordinate center = circle.getCenter();
-        
-        Query query = getQuery(address,params);
-        ModelCollector<Location> collector = new ModelCollector<>(Location.class,1,2,500,null,
-                center == null ? null : new LocationComparator(center)){
-            @Override
-            protected void addRecord(List<Location> records, Location record) {
-                super.addRecord(records, record);
-                if (center != null ){
-                    record.setDistance(center.distanceTo(new GeoCoordinate(record)) * 1000);
-                }
-            }
-        };
-        
-        LuceneIndexer.instance(Location.class).fire(query,1,collector);
-        List<Location> records = collector.getRecords();
+        List<Location> records = getLocations(address,params);
         if (records.isEmpty()){
             return null;
         }else {
@@ -140,6 +123,28 @@ public class OSMGeoSP implements GeoSP {
                 return StringUtil.valueOf(l.getText());
             }
         }).collect(Collectors.toList());
+    }
+    
+    public List<Location> getLocations(String address, Map<String, String> params) {
+        
+        Circle circle =  getCircle(params);
+        GeoCoordinate center = circle.getCenter();
+        
+        Query query = getQuery(address,params);
+        ModelCollector<Location> collector = new ModelCollector<>(Location.class,100,2,500,null,
+                center == null ? null : new LocationComparator(center)){
+            @Override
+            protected void addRecord(List<Location> records, Location record) {
+                super.addRecord(records, record);
+                if (center != null ){
+                    record.setDistance(center.distanceTo(new GeoCoordinate(record)) * 1000);
+                }
+            }
+        };
+        
+        LuceneIndexer.instance(Location.class).fire(query,collector.getBatchSize(),collector);
+        return collector.getRecords();
+        
     }
     
     public List<Location> getLocations(GeoLocation geoLocation, Map<String, String> params) {
@@ -210,7 +215,7 @@ public class OSMGeoSP implements GeoSP {
                 addQueries(builder, term, boost);
                 //BoostQuery boostQuery = new BoostQuery(new TermQuery(term),boostTable.get(values.size()-i));
             }
-            builder.setMinimumNumberShouldMatch((int)Math.ceil(0.6 * numTerms.doubleValue()));
+            //builder.setMinimumNumberShouldMatch((int)Math.ceil(0.6 * numTerms.doubleValue()));
             finalizeQuery(builder,params);
             return builder.build();
         }
