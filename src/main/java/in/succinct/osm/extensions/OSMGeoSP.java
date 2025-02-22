@@ -60,6 +60,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class OSMGeoSP implements GeoSP {
@@ -193,13 +194,10 @@ public class OSMGeoSP implements GeoSP {
     
     protected Query getQuery(String strQuery, Map<String, String> params){
         String field = "TEXT";
-        List<String> values = new ArrayList<>();
-        for (StringTokenizer tk = new StringTokenizer(strQuery,", ()\t\r\n\f"); tk.hasMoreTokens();) {
-            String token = tk.nextToken();
-           values.add(token);
-        }
+        
         try (StandardAnalyzer analyzer = new StandardAnalyzer(getStopSet())) {
             Builder builder = new BooleanQuery.Builder();
+            List<String> values = getTerms(strQuery,analyzer); // Removes Stop words.
             
             Bucket numTerms = new Bucket();
             for (int i = 0 ; i < values.size() ; i ++){
@@ -244,20 +242,25 @@ public class OSMGeoSP implements GeoSP {
     };
     
     public boolean isIgnorable(String text)  {
-        try (Analyzer analyzer = new StandardAnalyzer(getStopSet())){
-            try (TokenStream stream  = analyzer.tokenStream("TEXT", text)) {
-                CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
-                stream.reset();
-                List<String> terms = new ArrayList<>();
-                while (stream.incrementToken()){
-                    if (!ObjectUtil.isVoid(term.toString())){
-                        terms.add(term.toString());
-                    }
+        try (Analyzer analyzer = new StandardAnalyzer(getStopSet())) {
+            return getTerms(text,analyzer).isEmpty();
+        }
+    }
+    public List<String> getTerms(String text, Analyzer analyzer){
+        List<String> terms = new ArrayList<>();
+        
+        try (TokenStream stream  = analyzer.tokenStream("TEXT", text)) {
+            CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
+            stream.reset();
+            while (stream.incrementToken()){
+                if (!ObjectUtil.isVoid(term.toString())){
+                    terms.add(term.toString());
                 }
-                return terms.isEmpty();
             }
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            return terms;
+        }catch (Exception exception){
+            Config.instance().getLogger(getClass().getName()).log(Level.WARNING,"Could not identify terms",exception);
+            return terms;
         }
     }
     
