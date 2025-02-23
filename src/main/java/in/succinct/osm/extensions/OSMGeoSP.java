@@ -45,10 +45,14 @@ import org.apache.lucene.search.BooleanQuery.Builder;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.FuzzyQuery;
+import org.apache.lucene.search.MultiPhraseQuery;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.WildcardQuery;
 import org.apache.lucene.util.ResourceLoader;
+import org.apache.poi.ss.formula.functions.T;
 import org.bouncycastle.math.raw.Mod;
 
 import java.io.IOException;
@@ -57,6 +61,7 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -202,17 +207,14 @@ public class OSMGeoSP implements GeoSP {
         
         try (StandardAnalyzer analyzer = new StandardAnalyzer(getStopSet())) {
             Builder builder = new BooleanQuery.Builder();
-            List<String> values = getTerms(strQuery,analyzer); // Removes Stop words.
+            List<List<String>> values = getTerms(strQuery,analyzer); // Removes Stop words.
             
             Bucket numTerms = new Bucket();
             for (int i = 0 ; i < values.size() ; i ++){
-                String value = values.get(i);
-                
-                Term term = new Term(field, analyzer.normalize(field, value));
+                List<String> phraseTerms = values.get(i);
                 float boost = boostTable.get(values.size()-i);
-                
                 numTerms.increment();
-                addQueries(builder, term, boost);
+                addQueries(analyzer,builder, phraseTerms, boost);
                 //BoostQuery boostQuery = new BoostQuery(new TermQuery(term),boostTable.get(values.size()-i));
             }
             //builder.setMinimumNumberShouldMatch((int)Math.ceil(0.6 * numTerms.doubleValue()));
@@ -230,12 +232,39 @@ public class OSMGeoSP implements GeoSP {
         
     }
     
-    public void addQueries(Builder builder , Term term ,float boost){
-        if (term.text().length() > 7) {
-            builder.add(new BoostQuery(new ConstantScoreQuery(new FuzzyQuery(term)), boost), Occur.SHOULD);
-        }else {
-            builder.add(new BoostQuery(new ConstantScoreQuery(new PrefixQuery(term)),boost),Occur.SHOULD);
+    public void addQueries(Analyzer analyzer, Builder builder , List<String> phraseWords,float boost){
+        if (phraseWords.isEmpty()){
+            return;
         }
+        List<Term> terms = new ArrayList<>();
+        StringBuilder wildCardTerm = new StringBuilder();
+        for (String phraseTerm : phraseWords) {
+            Term term = new Term("TEXT",analyzer.normalize("TEXT",phraseTerm));
+            terms.add(term);
+            if (!wildCardTerm.isEmpty()){
+                wildCardTerm.append("*");
+            }
+            wildCardTerm.append(phraseTerm);
+            if (phraseTerm.length()> 7){
+                builder.add(new BoostQuery(new ConstantScoreQuery(new FuzzyQuery(term)), boost), Occur.SHOULD);
+            }else {
+                builder.add(new BoostQuery(new ConstantScoreQuery(new PrefixQuery(term)),boost),Occur.SHOULD);
+            }
+        }
+        
+        
+        if (phraseWords.size() > 1){
+            WildcardQuery wildcardQuery = new WildcardQuery(new Term("TEXT",analyzer.normalize("TEXT",wildCardTerm.toString())));
+            builder.add(new BoostQuery(new ConstantScoreQuery(wildcardQuery), boost), Occur.SHOULD);
+
+            PhraseQuery.Builder phraseBuilder = new PhraseQuery.Builder();
+            for (Term term:terms) {
+                phraseBuilder.add(term);
+            }
+            PhraseQuery phraseQuery = phraseBuilder.build();
+            builder.add(new BoostQuery(new ConstantScoreQuery(phraseQuery), boost), Occur.SHOULD);
+        }
+        
     }
     static Map<Integer,Float> boostTable = new UnboundedCache<>() {
         
@@ -251,22 +280,35 @@ public class OSMGeoSP implements GeoSP {
             return getTerms(text,analyzer).isEmpty();
         }
     }
-    public List<String> getTerms(String text, Analyzer analyzer){
-        List<String> terms = new ArrayList<>();
-        
-        try (TokenStream stream  = analyzer.tokenStream("TEXT", text)) {
-            CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
-            stream.reset();
-            while (stream.incrementToken()){
-                if (!ObjectUtil.isVoid(term.toString())){
-                    terms.add(term.toString());
-                }
-            }
-            return terms;
-        }catch (Exception exception){
-            Config.instance().getLogger(getClass().getName()).log(Level.WARNING,"Could not identify terms",exception);
-            return terms;
+    public List<String> getPhrases(String text){
+        List<String> phrases = new ArrayList<>();
+        for (StringTokenizer tk = new StringTokenizer(text,", ()\t\r\n\f"); tk.hasMoreTokens();) {
+            phrases.add(tk.nextToken());
         }
+        return phrases;
+    }
+    public List<List<String>> getTerms(String text, Analyzer analyzer){
+        
+        List<List<String>> terms = new ArrayList<>();
+        
+        for (String phrase: getPhrases(text)) {
+            try (TokenStream stream = analyzer.tokenStream("TEXT", phrase)) {
+                CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
+                stream.reset();
+                List<String> phraseTerms = new ArrayList<>();
+                while (stream.incrementToken()) {
+                    if (!ObjectUtil.isVoid(term.toString())) {
+                        phraseTerms.add(term.toString());
+                    }
+                }
+                terms.add(phraseTerms);
+            } catch (Exception exception) {
+                Config.instance().getLogger(getClass().getName()).log(Level.WARNING, "Could not identify terms", exception);
+            }
+            
+        }
+        return terms;
+        
     }
     
     volatile CharArraySet stopSet = null ;
