@@ -22,13 +22,13 @@ public class LocationComparator implements Comparator<Location> {
             o2.setDistance(center.distanceTo(new GeoCoordinate(o2)) * 1000);
         }
         ScoreDoc doc1 = o1.getTxnProperty("scoreDoc");
-        if (doc1 == null){
+        if (doc1 == null || Float.isNaN(doc1.score )){
             o1.setScore(0.0F);
         }else if (o1.getScore() == null){
             o1.setScore(doc1.score* 10000);
         }
         ScoreDoc doc2 = o2.getTxnProperty("scoreDoc");
-        if (doc2 == null){
+        if (doc2 == null || Float.isNaN(doc2.score )){
             o2.setScore(0.0F);
         }else if (o2.getScore() == null){
             o2.setScore(doc2.score* 10000);
