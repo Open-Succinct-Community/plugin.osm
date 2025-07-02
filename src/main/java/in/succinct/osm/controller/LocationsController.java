@@ -61,7 +61,7 @@ public class LocationsController extends ModelController<Location> {
     public View find(){
         Circle circle = getCircle();
         List<Location> locations =  OSMGeoSP.getInstance().getLocations(circle.getParams().get("q"),circle.getParams());
-        return IntegrationAdaptor.instance(getModelClass(), JSONObject.class).createResponse(getPath(),locations,List.of("TEXT","LAT","LNG","DISTANCE"));
+        return IntegrationAdaptor.instance(getModelClass(), JSONObject.class).createResponse(getPath(),locations,List.of("TEXT","LAT","LNG","DISTANCE","ID","SCORE"));
     }
 
     
