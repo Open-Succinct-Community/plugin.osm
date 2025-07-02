@@ -14,4 +14,15 @@ public class LocationImpl extends ModelImpl<Location> {
     public void setDistance(Double distance){
         this.distance = distance;
     }
+    
+    
+    Float score;
+    
+    public Float getScore() {
+        return score;
+    }
+    
+    public void setScore(Float score) {
+        this.score = score;
+    }
 }

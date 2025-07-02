@@ -34,4 +34,10 @@ public interface Location extends Model , GeoLocation {
     @IS_VIRTUAL
     Double getDistance();
     void setDistance(Double distance);
+    
+    @IS_VIRTUAL
+    Float getScore();
+    void setScore(Float score);
+    
+    
 }
