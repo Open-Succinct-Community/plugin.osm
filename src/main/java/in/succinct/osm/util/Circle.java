@@ -50,7 +50,7 @@ public class Circle {
     public double getDistance() {
         if (distance == null){
             String radius = params.get(  "radius");
-            radius = radius == null ? "5" : radius;
+            radius = radius == null ? "20" : radius;
             distance= tc.valueOf(radius).doubleValue() * 1000;
         }
         return distance;
